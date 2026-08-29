@@ -1,0 +1,13 @@
+[versions]
+java = "25"
+gradle = "9.4.1"
+quarkus = "3.39.1"
+spotless = "6.25.0"
+
+[plugins]
+quarkus = { id = "io.quarkus", version.ref = "quarkus" }
+
+[libraries]
+quarkus-bom = { module = "io.quarkus.platform:quarkus-bom", version.ref = "quarkus" }
+quarkus-junit = { module = "io.quarkus:quarkus-junit" }
+quarkus-smallrye-health = { module = "io.quarkus:quarkus-smallrye-health" }

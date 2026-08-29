@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Gradle build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v7
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+
+      - name: Build
+        run: ./gradlew clean spotlessApply checkstyleTest checkstyleMain test build componentTest --no-daemon --console=plain
