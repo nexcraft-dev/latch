@@ -1,20 +1,15 @@
 pluginManagement {
     includeBuild("build-logic")
-
-    repositories {
-        gradlePluginPortal()
-        mavenCentral()
-    }
 }
 
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-
-    repositories {
-        mavenCentral()
-    }
+plugins {
+    id("latch.settings-conventions")
 }
 
 rootProject.name = "latch"
+
+if (gradle.startParameter.taskNames.any { it == "componentTest" || it.endsWith(":componentTest") }) {
+    System.setProperty("latch.component-test", "true")
+}
 
 includeBuild("latch-control-plane")
