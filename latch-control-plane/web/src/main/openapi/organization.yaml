@@ -1,0 +1,230 @@
+# Documentation and API review contract only. Java controllers and models are handwritten.
+openapi: 3.0.3
+info:
+  title: Latch Control Plane Organization API
+  version: 0.1.0
+  description: Organization management API for the Latch control plane.
+servers:
+  - url: /
+tags:
+  - name: Organizations
+paths:
+  /api/v1/organizations:
+    post:
+      operationId: createOrganization
+      tags: [Organizations]
+      summary: Create an organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationNameRequest'
+      responses:
+        '201':
+          description: Organization created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    get:
+      operationId: listOrganizations
+      tags: [Organizations]
+      summary: List active organizations
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Active organizations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /api/v1/organizations/{organizationId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      operationId: getOrganization
+      tags: [Organizations]
+      summary: Get an active organization
+      responses:
+        '200':
+          description: The active organization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateOrganization
+      tags: [Organizations]
+      summary: Update an organization name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationNameRequest'
+      responses:
+        '200':
+          description: Organization updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteOrganization
+      tags: [Organizations]
+      summary: Soft-delete an organization
+      responses:
+        '204':
+          description: Organization marked as deleted.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Search:
+      name: search
+      in: query
+      required: false
+      schema:
+        type: string
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 20
+    Sort:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        default: createdAt,desc
+        pattern: '^(name|slug|createdAt|updatedAt),(asc|desc)$'
+  responses:
+    BadRequest:
+      description: Request validation or query parameter failure.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/HttpProblem'
+    NotFound:
+      description: Organization does not exist or has been deleted.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/HttpProblem'
+    Conflict:
+      description: The generated slug conflicts with an existing organization.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/HttpProblem'
+  schemas:
+    OrganizationNameRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+    Organization:
+      type: object
+      required: [id, name, slug, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+          maxLength: 80
+        status:
+          type: string
+          enum: [ACTIVE, DELETED]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    OrganizationPage:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+    HttpProblem:
+      type: object
+      required: [type, title, status, detail, instance]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
