@@ -1,0 +1,12 @@
+plugins {
+    `kotlin-dsl`
+}
+
+dependencies {
+    implementation("com.diffplug.spotless:spotless-plugin-gradle:${libs.versions.spotless.get()}")
+}
+
+repositories {
+    gradlePluginPortal()
+    mavenCentral()
+}

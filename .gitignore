@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+**/.gradle/
+build/
+**/build/
+
+# IntelliJ IDEA
+.idea/
+**/.idea/
+out/
+**/out/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Quarkus
+.quarkus/
+**/.quarkus/
+
+# Local orchestration artifacts
+/docs/
+.agents/
