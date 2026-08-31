@@ -63,6 +63,33 @@ cd latch-control-plane
 
 The Quarkus health endpoint is available at `/q/health` when the `web` application is running. It is a framework-managed endpoint, not a product REST API. Future product APIs must define an OpenAPI contract first and use versioned `/api/v1/...` routes.
 
+For local Quarkus development, leave the datasource connection unset. Quarkus
+Dev Services will start a PostgreSQL container automatically when Docker or
+OrbStack is running, then Flyway applies the migrations. The application keeps
+explicit OIDC and JDBC settings under the `prod` profile for deployed
+environments. With no local OIDC URL configured, Quarkus also starts its
+Keycloak Dev Service automatically for development-mode authentication.
+
+If a local PostgreSQL instance is already running, provide its connection
+through Quarkus configuration and keep Dev Services from taking over:
+
+```bash
+cd latch-control-plane
+QUARKUS_DATASOURCE_DEVSERVICES_ENABLED=false \
+QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://localhost:5432/latch \
+QUARKUS_DATASOURCE_USERNAME=latch \
+QUARKUS_DATASOURCE_PASSWORD=latch \
+./gradlew :web:quarkusDev
+```
+
+If Docker/OrbStack is not available, start PostgreSQL manually or use the
+explicit connection settings above. A `Connection refused` error for
+`localhost:5432` means no PostgreSQL server is listening at that address.
+
+If an external OIDC URL is provided while running dev mode, that provider must
+be reachable. Otherwise leave `OIDC_AUTH_SERVER_URL` unset so the local
+Keycloak Dev Service can provide the development provider.
+
 ## Authentication and membership
 
 Product endpoints require a bearer token issued by the configured external
