@@ -3,12 +3,30 @@ openapi: 3.0.3
 info:
   title: Latch Control Plane Organization API
   version: 0.1.0
-  description: Organization management API for the Latch control plane.
+  description: Organization, Identity, and Membership API for the Latch control plane.
 servers:
   - url: /
+security:
+  - bearerAuth: []
 tags:
   - name: Organizations
+  - name: Identity
+  - name: Memberships
 paths:
+  /api/v1/me:
+    get:
+      operationId: getCurrentIdentity
+      tags: [Identity]
+      summary: Get the current authenticated Identity
+      responses:
+        '200':
+          description: The authenticated Identity.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/v1/organizations:
     post:
       operationId: createOrganization
@@ -31,6 +49,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '409':
           $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     get:
       operationId: listOrganizations
       tags: [Organizations]
@@ -49,6 +69,8 @@ paths:
                 $ref: '#/components/schemas/OrganizationPage'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/v1/organizations/{organizationId}:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -67,6 +89,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     patch:
       operationId: updateOrganization
       tags: [Organizations]
@@ -88,6 +112,10 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     delete:
       operationId: deleteOrganization
       tags: [Organizations]
@@ -99,10 +127,118 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/organizations/{organizationId}/members:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      operationId: listOrganizationMembers
+      tags: [Memberships]
+      summary: List active members of an organization
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Active organization members.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: addOrganizationMember
+      tags: [Memberships]
+      summary: Add an Identity to an organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddOrganizationMember'
+      responses:
+        '201':
+          description: Organization member created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationMember'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/organizations/{organizationId}/members/{membershipId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/MembershipId'
+    patch:
+      operationId: updateOrganizationMembership
+      tags: [Memberships]
+      summary: Update an organization member role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMembershipRole'
+      responses:
+        '200':
+          description: Organization membership updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationMember'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: removeOrganizationMember
+      tags: [Memberships]
+      summary: Remove an Identity from an organization
+      responses:
+        '204':
+          description: Organization membership removed.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   parameters:
     OrganizationId:
       name: organizationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    MembershipId:
+      name: membershipId
       in: path
       required: true
       schema:
@@ -155,12 +291,38 @@ components:
           schema:
             $ref: '#/components/schemas/HttpProblem'
     Conflict:
-      description: The generated slug conflicts with an existing organization.
+      description: The requested operation conflicts with existing organization data.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/HttpProblem'
+    Unauthorized:
+      description: Authentication is required or the bearer token is invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/HttpProblem'
+    Forbidden:
+      description: The authenticated Identity lacks the required membership role.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/HttpProblem'
   schemas:
+    Identity:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          nullable: true
+        displayName:
+          type: string
+          nullable: true
     OrganizationNameRequest:
       type: object
       required: [name]
@@ -211,6 +373,74 @@ components:
         totalPages:
           type: integer
           format: int32
+    MembershipRole:
+      type: string
+      enum: [OWNER, ADMIN, MEMBER, VIEWER]
+    OrganizationMember:
+      type: object
+      required: [id, organizationId, identityId, role, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        identityId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          nullable: true
+        displayName:
+          type: string
+          nullable: true
+        role:
+          $ref: '#/components/schemas/MembershipRole'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    MemberPage:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrganizationMember'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+    AddOrganizationMember:
+      type: object
+      required: [identityId, role]
+      additionalProperties: false
+      properties:
+        identityId:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/MembershipRole'
+    UpdateMembershipRole:
+      type: object
+      required: [role]
+      additionalProperties: false
+      properties:
+        role:
+          $ref: '#/components/schemas/MembershipRole'
     HttpProblem:
       type: object
       required: [type, title, status, detail, instance]

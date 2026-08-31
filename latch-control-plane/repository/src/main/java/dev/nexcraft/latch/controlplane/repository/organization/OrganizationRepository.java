@@ -1,6 +1,7 @@
 package dev.nexcraft.latch.controlplane.repository.organization;
 
 import dev.nexcraft.latch.controlplane.core.organization.Organization;
+import dev.nexcraft.latch.controlplane.core.membership.Membership;
 import dev.nexcraft.latch.controlplane.core.organization.query.OrganizationPage;
 import dev.nexcraft.latch.controlplane.core.organization.query.OrganizationQuery;
 import java.util.Optional;
@@ -36,10 +37,37 @@ public interface OrganizationRepository {
     OrganizationPage findActive(OrganizationQuery query);
 
     /**
+     * Lists active Organizations associated with an Identity.
+     *
+     * @param identityId authenticated Identity
+     * @param query validated list query
+     * @return a page of accessible active Organizations
+     */
+    OrganizationPage findActiveForIdentity(UUID identityId, OrganizationQuery query);
+
+    /**
+     * Finds an active Organization associated with an Identity.
+     *
+     * @param organizationId target Organization
+     * @param identityId authenticated Identity
+     * @return the accessible active Organization when present
+     */
+    Optional<Organization> findActiveByIdForIdentity(UUID organizationId, UUID identityId);
+
+    /**
      * Persists an organization aggregate.
      *
      * @param organization aggregate to persist
      * @return persisted aggregate
      */
     Organization save(Organization organization);
+
+    /**
+     * Persists a new Organization and its OWNER Membership atomically.
+     *
+     * @param organization Organization to persist
+     * @param ownerMembership required OWNER membership
+     * @return persisted Organization
+     */
+    Organization saveWithOwner(Organization organization, Membership ownerMembership);
 }

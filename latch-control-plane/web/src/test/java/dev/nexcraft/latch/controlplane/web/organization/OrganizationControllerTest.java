@@ -6,6 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.test.security.TestSecurity;
+import io.quarkus.test.security.oidc.Claim;
+import io.quarkus.test.security.oidc.OidcSecurity;
 import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
 import java.io.IOException;
@@ -22,6 +25,13 @@ import org.junit.jupiter.api.Test;
  * Verifies the Organization REST contract against the Quarkus JVM runtime.
  */
 @QuarkusTest
+@TestSecurity(user = "test-user")
+@OidcSecurity(claims = {
+        @Claim(key = "iss", value = "https://issuer.example"),
+        @Claim(key = "sub", value = "test-subject"),
+        @Claim(key = "email", value = "test@example.com"),
+        @Claim(key = "name", value = "Test User")
+})
 class OrganizationControllerTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();

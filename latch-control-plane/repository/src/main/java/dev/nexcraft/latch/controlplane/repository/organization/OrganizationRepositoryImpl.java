@@ -6,6 +6,9 @@ import dev.nexcraft.latch.controlplane.core.organization.query.OrganizationPage;
 import dev.nexcraft.latch.controlplane.core.organization.query.OrganizationQuery;
 import dev.nexcraft.latch.controlplane.core.organization.query.OrganizationSortField;
 import dev.nexcraft.latch.controlplane.core.organization.query.SortDirection;
+import dev.nexcraft.latch.controlplane.core.membership.Membership;
+import dev.nexcraft.latch.controlplane.repository.membership.persistence.OrganizationMembershipEntityMapper;
+import dev.nexcraft.latch.controlplane.repository.membership.persistence.OrganizationMembershipPanacheRepository;
 import dev.nexcraft.latch.controlplane.repository.organization.persistence.OrganizationEntity;
 import dev.nexcraft.latch.controlplane.repository.organization.persistence.OrganizationEntityMapper;
 import dev.nexcraft.latch.controlplane.repository.organization.persistence.OrganizationPanacheRepository;
@@ -28,15 +31,22 @@ public class OrganizationRepositoryImpl implements OrganizationRepository {
 
     private final OrganizationPanacheRepository repository;
     private final OrganizationEntityMapper mapper;
+    private final OrganizationMembershipPanacheRepository membershipRepository;
+    private final OrganizationMembershipEntityMapper membershipMapper;
 
     /**
      * Creates the organization repository.
      *
      * @param repository Panache access object
+     * @param membershipRepository membership Panache access object
      */
-    public OrganizationRepositoryImpl(OrganizationPanacheRepository repository) {
+    public OrganizationRepositoryImpl(
+            OrganizationPanacheRepository repository,
+            OrganizationMembershipPanacheRepository membershipRepository) {
         this.repository = repository;
         this.mapper = new OrganizationEntityMapper();
+        this.membershipRepository = membershipRepository;
+        this.membershipMapper = new OrganizationMembershipEntityMapper();
     }
 
     @Override
@@ -55,9 +65,33 @@ public class OrganizationRepositoryImpl implements OrganizationRepository {
     public OrganizationPage findActive(OrganizationQuery query) {
         List<Object> parameters = new ArrayList<>();
         parameters.add(OrganizationStatus.ACTIVE);
-        String where = "status = ?1";
+        return findPage("status = ?1", parameters, query);
+    }
+
+    @Override
+    public OrganizationPage findActiveForIdentity(UUID identityId, OrganizationQuery query) {
+        List<Object> parameters = new ArrayList<>();
+        parameters.add(OrganizationStatus.ACTIVE);
+        parameters.add(identityId);
+        String where = "status = ?1 and id in (select membership.organizationId "
+                + "from OrganizationMembershipEntity membership where membership.identityId = ?2)";
+        return findPage(where, parameters, query);
+    }
+
+    @Override
+    public Optional<Organization> findActiveByIdForIdentity(UUID organizationId, UUID identityId) {
+        String where = "status = ?1 and id = ?2 and id in (select membership.organizationId "
+                + "from OrganizationMembershipEntity membership where membership.identityId = ?3)";
+        return repository.find(where, OrganizationStatus.ACTIVE, organizationId, identityId)
+                .firstResultOptional()
+                .map(mapper::toDomain);
+    }
+
+    private OrganizationPage findPage(String baseWhere, List<Object> parameters, OrganizationQuery query) {
+        String where = baseWhere;
         if (query.search() != null) {
-            where += " and (lower(name) like ?2 or lower(slug) like ?2)";
+            int searchParameter = parameters.size() + 1;
+            where += " and (lower(name) like ?" + searchParameter + " or lower(slug) like ?" + searchParameter + ")";
             parameters.add("%" + query.search().toLowerCase(Locale.ROOT) + "%");
         }
         Object[] parameterArray = parameters.toArray();
@@ -83,6 +117,15 @@ public class OrganizationRepositoryImpl implements OrganizationRepository {
         } else {
             entity.apply(organization);
         }
+        return mapper.toDomain(entity);
+    }
+
+    @Override
+    @Transactional
+    public Organization saveWithOwner(Organization organization, Membership ownerMembership) {
+        OrganizationEntity entity = mapper.toEntity(organization);
+        repository.persist(entity);
+        membershipRepository.persist(membershipMapper.toEntity(ownerMembership));
         return mapper.toDomain(entity);
     }
 

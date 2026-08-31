@@ -8,6 +8,8 @@ import dev.nexcraft.latch.controlplane.core.organization.dto.OrganizationName;
 import dev.nexcraft.latch.controlplane.core.organization.dto.OrganizationPage;
 import dev.nexcraft.latch.controlplane.core.organization.query.ListOrganizationsQuery;
 import dev.nexcraft.latch.controlplane.core.organization.service.OrganizationService;
+import dev.nexcraft.latch.controlplane.web.security.CurrentIdentityContext;
+import io.quarkus.security.Authenticated;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -38,17 +40,23 @@ import java.util.UUID;
 @Path("/api/v1/organizations")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
+@Authenticated
 public class OrganizationController {
 
     private final OrganizationService service;
+    private final CurrentIdentityContext currentIdentityContext;
 
     /**
      * Creates the organization controller.
      *
      * @param service organization application service
+     * @param currentIdentityContext authenticated request Identity
      */
-    public OrganizationController(OrganizationService service) {
+    public OrganizationController(
+            OrganizationService service,
+            CurrentIdentityContext currentIdentityContext) {
         this.service = service;
+        this.currentIdentityContext = currentIdentityContext;
     }
 
     /**
@@ -59,7 +67,8 @@ public class OrganizationController {
      */
     @POST
     public Response createOrganization(@NotNull @Valid OrganizationName request) {
-        Organization organization = service.create(new CreateOrganizationCommand(request.name()));
+        Organization organization = service.create(
+                currentIdentityContext.require().id(), new CreateOrganizationCommand(request.name()));
         return Response.status(Response.Status.CREATED).entity(toResponse(organization)).build();
     }
 
@@ -79,7 +88,7 @@ public class OrganizationController {
             @QueryParam("size") @DefaultValue("20") @Min(1) @Max(100) Integer size,
             @QueryParam("sort") @DefaultValue("createdAt,desc") String sort) {
         OrganizationPage response = toPage(service.list(
-                new ListOrganizationsQuery(search, page, size, sort)));
+                currentIdentityContext.require().id(), new ListOrganizationsQuery(search, page, size, sort)));
         return Response.ok(response).build();
     }
 
@@ -92,7 +101,7 @@ public class OrganizationController {
     @GET
     @Path("/{organizationId}")
     public Response getOrganization(@PathParam("organizationId") UUID organizationId) {
-        return Response.ok(toResponse(service.get(organizationId))).build();
+        return Response.ok(toResponse(service.get(currentIdentityContext.require().id(), organizationId))).build();
     }
 
     /**
@@ -108,7 +117,7 @@ public class OrganizationController {
             @PathParam("organizationId") UUID organizationId,
             @NotNull @Valid OrganizationName request) {
         Organization organization = service.update(
-                new UpdateOrganizationCommand(organizationId, request.name()));
+                currentIdentityContext.require().id(), new UpdateOrganizationCommand(organizationId, request.name()));
         return Response.ok(toResponse(organization)).build();
     }
 
@@ -121,7 +130,7 @@ public class OrganizationController {
     @DELETE
     @Path("/{organizationId}")
     public Response deleteOrganization(@PathParam("organizationId") UUID organizationId) {
-        service.delete(organizationId);
+        service.delete(currentIdentityContext.require().id(), organizationId);
         return Response.noContent().build();
     }
 
