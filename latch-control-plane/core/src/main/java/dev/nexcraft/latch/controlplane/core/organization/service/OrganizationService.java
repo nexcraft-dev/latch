@@ -19,39 +19,44 @@ public interface OrganizationService {
     /**
      * Creates an active organization.
      *
+     * @param actorIdentityId authenticated creator
      * @param command creation input
      * @return created organization
      */
-    Organization create(CreateOrganizationCommand command);
+    Organization create(UUID actorIdentityId, CreateOrganizationCommand command);
 
     /**
      * Lists active organizations.
      *
+     * @param actorIdentityId authenticated caller
      * @param query listing input
      * @return active organization page
      */
-    OrganizationPage list(ListOrganizationsQuery query);
+    OrganizationPage list(UUID actorIdentityId, ListOrganizationsQuery query);
 
     /**
      * Gets an active organization.
      *
+     * @param actorIdentityId authenticated caller
      * @param id organization identifier
      * @return active organization
      */
-    Organization get(UUID id);
+    Organization get(UUID actorIdentityId, UUID id);
 
     /**
      * Renames an active organization without changing its slug.
      *
+     * @param actorIdentityId authenticated caller
      * @param command update input
      * @return updated organization
      */
-    Organization update(UpdateOrganizationCommand command);
+    Organization update(UUID actorIdentityId, UpdateOrganizationCommand command);
 
     /**
      * Soft-deletes an active organization.
      *
+     * @param actorIdentityId authenticated caller
      * @param id organization identifier
      */
-    void delete(UUID id);
+    void delete(UUID actorIdentityId, UUID id);
 }

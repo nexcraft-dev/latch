@@ -9,12 +9,14 @@ dependencies {
     implementation(project(":service"))
     implementation(enforcedPlatform(libs.quarkus.bom))
     implementation(libs.quarkus.smallrye.health)
+    implementation(libs.quarkus.oidc)
     implementation(libs.quarkus.rest.jackson)
     implementation(libs.quarkus.hibernate.validator)
     implementation(libs.quarkus.smallrye.openapi)
     implementation(libs.quarkus.http.problem)
 
     testImplementation(libs.quarkus.junit)
+    testImplementation(libs.quarkus.test.security.oidc)
 }
 
 val componentTestRequested = providers
