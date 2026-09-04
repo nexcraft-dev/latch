@@ -12,13 +12,13 @@ web → service → repository → core
 
 Module responsibilities:
 
-- `core`: framework-free organization, Identity, and membership models, DTOs,
-  service interfaces, query values, and shared exceptions.
-- `service`: service implementations, organization slug/pagination policy, and
-  membership authorization rules.
+- `core`: framework-free organization, Project, Identity, and membership
+  models, DTOs, service interfaces, query values, and shared exceptions.
+- `service`: service implementations, organization slug/pagination policy,
+  Project Organization-scope/role policy, and membership authorization rules.
 - `repository`: co-located repository interfaces and `Impl` classes, database
   entities, explicit mappers, and Flyway migrations for organizations,
-  Identities, and memberships.
+  Projects, Identities, and memberships.
 - `web`: handwritten controllers, the verified OIDC-to-Identity adapter,
   request-scoped current Identity, exception handlers, and Quarkus HTTP
   Problem integration.
@@ -89,6 +89,28 @@ explicit connection settings above. A `Connection refused` error for
 If an external OIDC URL is provided while running dev mode, that provider must
 be reachable. Otherwise leave `OIDC_AUTH_SERVER_URL` unset so the local
 Keycloak Dev Service can provide the development provider.
+
+If Gradle reports that a cached artifact such as
+`quarkus-http-problem-3.38.2.jar` does not exist, or reports a missing
+`GradleWorkerMain`, the local Gradle user home is incomplete. Keep the source
+tree unchanged and run with a fresh cache location:
+
+```bash
+cd latch-control-plane
+GRADLE_USER_HOME=/tmp/latch-gradle-home-clean ./gradlew :web:quarkusDev
+```
+
+The first run with a fresh location downloads the Gradle distribution and
+dependencies again. `GRADLE_USER_HOME=/tmp/latch-gradle-home` may be reused
+after the download completes.
+
+If Quarkus reports that port `8080` is already in use, either stop the
+existing process or choose another port:
+
+```bash
+GRADLE_USER_HOME=/tmp/latch-gradle-home-clean \
+./gradlew :web:quarkusDev -Dquarkus.http.port=8081
+```
 
 ## Authentication and membership
 
@@ -170,3 +192,48 @@ If Gradle cannot write its default native cache in the local environment, use a 
 ```bash
 GRADLE_USER_HOME=/tmp/latch-gradle-home ./gradlew build
 ```
+
+## Project API
+
+Projects always belong to one active Organization and are available only to
+its active members. The Project endpoints are nested below the Organization:
+
+```text
+POST   /api/v1/organizations/{organizationId}/projects
+GET    /api/v1/organizations/{organizationId}/projects
+GET    /api/v1/organizations/{organizationId}/projects/{projectId}
+PATCH  /api/v1/organizations/{organizationId}/projects/{projectId}
+DELETE /api/v1/organizations/{organizationId}/projects/{projectId}
+```
+
+Create a Project with a stable, Organization-local key:
+
+```bash
+curl -i -X POST "http://localhost:8080/api/v1/organizations/$ORGANIZATION_ID/projects" \
+  -H "Authorization: Bearer $OIDC_ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Checkout","key":"checkout","description":"Feature flags for checkout"}'
+
+curl -H "Authorization: Bearer $OIDC_ACCESS_TOKEN" \
+  "http://localhost:8080/api/v1/organizations/$ORGANIZATION_ID/projects?search=checkout&page=0&size=20&sort=name,asc"
+```
+
+Project names are required, non-blank, and limited to 120 characters. Keys
+are required, limited to 80 characters, lowercase, and may contain letters,
+numbers, and hyphens in URL/config-friendly segments such as `mobile-app` or
+`booking-v2`. A key is unique within its Organization and cannot be changed.
+Descriptions are optional and limited to 500 characters. Project list results
+search `name`, `key`, and `description` case-insensitively, include active
+Projects only, default to `page=0`, `size=20`, `createdAt,desc`, and cap the
+page size at 100. Project deletion is soft deletion, so deleted rows remain in
+the database but disappear from normal reads.
+
+Organization roles control Project operations: `OWNER` and `ADMIN` can create,
+read, update, and delete; `MEMBER` can create, read, and update; `VIEWER` can
+read only. The service reuses the existing Organization Membership model, and
+the nested route prevents cross-Organization Project access.
+
+The Project contract is documented in
+`latch-control-plane/web/src/main/openapi/organization.yaml`. It is a
+documentation/review artifact; the Java controller and core DTOs are
+handwritten and are not generated from OpenAPI.
