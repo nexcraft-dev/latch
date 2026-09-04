@@ -90,6 +90,28 @@ If an external OIDC URL is provided while running dev mode, that provider must
 be reachable. Otherwise leave `OIDC_AUTH_SERVER_URL` unset so the local
 Keycloak Dev Service can provide the development provider.
 
+If Gradle reports that a cached artifact such as
+`quarkus-http-problem-3.38.2.jar` does not exist, or reports a missing
+`GradleWorkerMain`, the local Gradle user home is incomplete. Keep the source
+tree unchanged and run with a fresh cache location:
+
+```bash
+cd latch-control-plane
+GRADLE_USER_HOME=/tmp/latch-gradle-home-clean ./gradlew :web:quarkusDev
+```
+
+The first run with a fresh location downloads the Gradle distribution and
+dependencies again. `GRADLE_USER_HOME=/tmp/latch-gradle-home` may be reused
+after the download completes.
+
+If Quarkus reports that port `8080` is already in use, either stop the
+existing process or choose another port:
+
+```bash
+GRADLE_USER_HOME=/tmp/latch-gradle-home-clean \
+./gradlew :web:quarkusDev -Dquarkus.http.port=8081
+```
+
 ## Authentication and membership
 
 Product endpoints require a bearer token issued by the configured external
