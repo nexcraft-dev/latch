@@ -1,9 +1,9 @@
 # Documentation and API review contract only. Java controllers and models are handwritten.
 openapi: 3.0.3
 info:
-  title: Latch Control Plane Organization API
+  title: Latch Control Plane Organization and Project API
   version: 0.1.0
-  description: Organization, Identity, and Membership API for the Latch control plane.
+  description: Organization, Project, Identity, and Membership API for the Latch control plane.
 servers:
   - url: /
 security:
@@ -12,6 +12,7 @@ tags:
   - name: Organizations
   - name: Identity
   - name: Memberships
+  - name: Projects
 paths:
   /api/v1/me:
     get:
@@ -223,6 +224,117 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/organizations/{organizationId}/projects:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      operationId: createProject
+      tags: [Projects]
+      summary: Create a project in an organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '201':
+          description: Project created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    get:
+      operationId: listProjects
+      tags: [Projects]
+      summary: List active projects in an organization
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/ProjectSort'
+      responses:
+        '200':
+          description: Active projects in the organization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/organizations/{organizationId}/projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: getProject
+      tags: [Projects]
+      summary: Get an active project in an organization
+      responses:
+        '200':
+          description: The active project.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateProject
+      tags: [Projects]
+      summary: Update a project's name and description
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+      responses:
+        '200':
+          description: Project updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteProject
+      tags: [Projects]
+      summary: Soft-delete a project
+      responses:
+        '204':
+          description: Project marked as deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearerAuth:
@@ -239,6 +351,13 @@ components:
         format: uuid
     MembershipId:
       name: membershipId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ProjectId:
+      name: projectId
       in: path
       required: true
       schema:
@@ -277,6 +396,14 @@ components:
         type: string
         default: createdAt,desc
         pattern: '^(name|slug|createdAt|updatedAt),(asc|desc)$'
+    ProjectSort:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        default: createdAt,desc
+        pattern: '^(name|key|createdAt|updatedAt),(asc|desc)$'
   responses:
     BadRequest:
       description: Request validation or query parameter failure.
@@ -285,13 +412,13 @@ components:
           schema:
             $ref: '#/components/schemas/HttpProblem'
     NotFound:
-      description: Organization does not exist or has been deleted.
+      description: The requested Organization or Project does not exist, is inaccessible, or has been deleted.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/HttpProblem'
     Conflict:
-      description: The requested operation conflicts with existing organization data.
+      description: The requested operation conflicts with existing Organization or Project data.
       content:
         application/problem+json:
           schema:
@@ -441,6 +568,85 @@ components:
       properties:
         role:
           $ref: '#/components/schemas/MembershipRole'
+    ProjectCreate:
+      type: object
+      required: [name, key]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        key:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+    ProjectUpdate:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+    Project:
+      type: object
+      required: [id, organizationId, name, key, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        key:
+          type: string
+          maxLength: 80
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        status:
+          type: string
+          enum: [ACTIVE, DELETED]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ProjectPage:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
     HttpProblem:
       type: object
       required: [type, title, status, detail, instance]
